@@ -1,0 +1,28 @@
+---
+- name: Transfer and execute a script.
+  hosts: all
+  become: true
+  become_user: postgres
+  tasks:
+
+     - name: Transfer the script
+       ansible.builtin.copy: src=parallel_leader_participation_test.sh dest=/var/lib/postgresql/parallel_leader_participation_test.sh mode='0700'
+
+     - name: Run the test script
+       ansible.builtin.shell: /var/lib/postgresql/parallel_leader_participation_test.sh &> parallel_leader_participation_test_`date +%s`.log
+       args:
+         executable: /bin/bash
+         chdir: /var/lib/postgresql
+
+     - name: Storing in a path relative to the playbook
+       ansible.builtin.fetch:
+         src: /var/lib/postgresql/pgss.dump
+         dest: ./results/{{ inventory_hostname }}_pgss.dump
+         flat: true
+         fail_on_missing: true
+
+     - name: Pull run logs just in case
+       ansible.posix.synchronize:
+         src: /var/lib/postgresql/parallel_leader_*.log
+         dest: logs/
+         mode: pull
